@@ -1,0 +1,9 @@
+# Admin area — extra protection
+Options -Indexes
+<IfModule mod_authz_core.c>
+  # Block common scanner paths
+</IfModule>
+# Deny access to hidden files
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>

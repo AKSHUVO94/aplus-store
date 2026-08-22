@@ -1,0 +1,4 @@
+# Allow image files
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|JPG|JPEG|PNG|GIF|WEBP)$">
+  Require all granted
+</FilesMatch>
