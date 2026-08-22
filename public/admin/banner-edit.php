@@ -123,11 +123,11 @@ ob_start();
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Text align</label>
+          <label>Layout (image side)</label>
           <select name="text_align" class="form-control">
-            <?php foreach (array('left','center','right') as $a): ?>
-            <option value="<?= $a ?>" <?= ($b['text_align']??'left')===$a?'selected':'' ?>><?= ucfirst($a) ?></option>
-            <?php endforeach; ?>
+            <option value="left" <?= ($b['text_align']??'left')==='left'?'selected':'' ?>>Image LEFT · Text right</option>
+            <option value="center" <?= ($b['text_align']??'')==='center'?'selected':'' ?>>Image LEFT · Text right</option>
+            <option value="right" <?= ($b['text_align']??'')==='right'?'selected':'' ?>>Image RIGHT · Text left</option>
           </select>
         </div>
         <div class="form-group">

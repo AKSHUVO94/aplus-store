@@ -13,6 +13,17 @@ $keys = [
     'pay_rocket_number','pay_rocket_type',
     'pay_bank_name','pay_bank_account_name','pay_bank_account_no','pay_bank_branch','pay_instructions',
     'pay_visa_account','pay_mastercard_account',
+    'social_facebook_enabled','social_facebook_url',
+    'social_instagram_enabled','social_instagram_url',
+    'social_whatsapp_enabled','social_whatsapp_url',
+    'footer_pay_cod','footer_pay_bkash','footer_pay_nagad','footer_pay_rocket','footer_pay_visa','footer_pay_mc',
+    'promo_enabled','promo_title','promo_text','promo_btn_text','promo_btn_link','promo_image',
+    'review_1_enabled','review_1_name','review_1_text','review_1_stars',
+    'review_2_enabled','review_2_name','review_2_text','review_2_stars',
+    'review_3_enabled','review_3_name','review_3_text','review_3_stars',
+    'review_4_enabled','review_4_name','review_4_text','review_4_stars',
+    'review_5_enabled','review_5_name','review_5_text','review_5_stars',
+    'review_6_enabled','review_6_name','review_6_text','review_6_stars',
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_mail'])) {
@@ -21,6 +32,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_mail'])) {
         $testTo = setting('site_email', '');
     }
     // save smtp fields first from POST so test uses latest typed values
+
+    // Promo popup image
+    if (!empty($_FILES['promo_image_file']['name']) && $_FILES['promo_image_file']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['promo_image_file'];
+        if ($file['size'] <= 3 * 1024 * 1024) {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($file['tmp_name']);
+            $map = array('image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp');
+            if (isset($map[$mime])) {
+                $dir = dirname(dirname(__DIR__)) . '/public/uploads/promo';
+                if (!is_dir($dir)) mkdir($dir, 0755, true);
+                $name = 'promo_' . time() . '.' . $map[$mime];
+                if (move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) {
+                    $_POST['promo_image'] = 'uploads/promo/' . $name;
+                }
+            }
+        }
+    }
+    if (isset($_POST['delete_promo_image'])) {
+        $old = setting('promo_image', '');
+        if ($old) {
+            $path = dirname(dirname(__DIR__)) . '/public/' . ltrim($old, '/');
+            if (is_file($path)) @unlink($path);
+        }
+        $_POST['promo_image'] = '';
+    }
+
     foreach ($keys as $k) {
         if (strpos($k, '_enabled') !== false || $k === 'mail_order_confirmation' || $k === 'smtp_enabled') {
             $val = isset($_POST[$k]) ? '1' : '0';
@@ -79,8 +117,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+
+    // Promo popup image
+    if (!empty($_FILES['promo_image_file']['name']) && $_FILES['promo_image_file']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['promo_image_file'];
+        if ($file['size'] <= 3 * 1024 * 1024) {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($file['tmp_name']);
+            $map = array('image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp');
+            if (isset($map[$mime])) {
+                $dir = dirname(dirname(__DIR__)) . '/public/uploads/promo';
+                if (!is_dir($dir)) mkdir($dir, 0755, true);
+                $name = 'promo_' . time() . '.' . $map[$mime];
+                if (move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) {
+                    $_POST['promo_image'] = 'uploads/promo/' . $name;
+                }
+            }
+        }
+    }
+    if (isset($_POST['delete_promo_image'])) {
+        $old = setting('promo_image', '');
+        if ($old) {
+            $path = dirname(dirname(__DIR__)) . '/public/' . ltrim($old, '/');
+            if (is_file($path)) @unlink($path);
+        }
+        $_POST['promo_image'] = '';
+    }
+
     foreach ($keys as $k) {
-        if (strpos($k, '_enabled') !== false) {
+        if (strpos($k, '_enabled') !== false || strpos($k, 'footer_pay_') === 0) {
             $val = isset($_POST[$k]) ? '1' : '0';
         } else {
             if (!isset($_POST[$k])) continue;
@@ -121,6 +186,112 @@ ob_start();
       <div class="form-group"><label>Shipping Cost (৳)</label><input type="number" name="shipping_cost" class="form-control" value="<?= e($g('shipping_cost','120')) ?>"></div>
       <div class="form-group"><label>Free Shipping Min (৳)</label><input type="number" name="free_shipping_min" class="form-control" value="<?= e($g('free_shipping_min','3000')) ?>"></div>
     </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><h3><i class="fas fa-share-alt"></i> Social Links (Footer)</h3></div>
+  <div class="panel-body">
+    <p class="text-muted" style="margin-bottom:16px;font-size:.9rem">Enable icons and set full profile URLs. Disabled icons will not show in footer.</p>
+    <div style="border:1px solid var(--color-border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:10px">
+        <input type="checkbox" name="social_facebook_enabled" value="1" <?= $g('social_facebook_enabled','1')==='1'?'checked':'' ?>>
+        Facebook
+      </label>
+      <input type="url" name="social_facebook_url" class="form-control" value="<?= e($g('social_facebook_url')) ?>" placeholder="https://facebook.com/yourpage">
+    </div>
+    <div style="border:1px solid var(--color-border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:10px">
+        <input type="checkbox" name="social_instagram_enabled" value="1" <?= $g('social_instagram_enabled','1')==='1'?'checked':'' ?>>
+        Instagram
+      </label>
+      <input type="url" name="social_instagram_url" class="form-control" value="<?= e($g('social_instagram_url')) ?>" placeholder="https://instagram.com/yourpage">
+    </div>
+    <div style="border:1px solid var(--color-border);border-radius:12px;padding:14px;margin-bottom:4px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:10px">
+        <input type="checkbox" name="social_whatsapp_enabled" value="1" <?= $g('social_whatsapp_enabled','1')==='1'?'checked':'' ?>>
+        WhatsApp
+      </label>
+      <input type="url" name="social_whatsapp_url" class="form-control" value="<?= e($g('social_whatsapp_url')) ?>" placeholder="https://wa.me/8801XXXXXXXXX">
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><h3><i class="fas fa-credit-card"></i> Footer Payment Badges</h3></div>
+  <div class="panel-body">
+    <p class="text-muted" style="margin-bottom:14px;font-size:.9rem">Show or hide payment logos in the website footer. (Checkout methods are still controlled under Payment Gateways.)</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+      <?php
+      $footerPays = array(
+        'footer_pay_cod' => 'COD',
+        'footer_pay_bkash' => 'bKash',
+        'footer_pay_nagad' => 'Nagad',
+        'footer_pay_rocket' => 'Rocket',
+        'footer_pay_visa' => 'VISA',
+        'footer_pay_mc' => 'Mastercard',
+      );
+      foreach ($footerPays as $fk => $flabel):
+      ?>
+      <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--color-border);border-radius:10px;font-weight:600;font-size:.875rem">
+        <input type="checkbox" name="<?= e($fk) ?>" value="1" <?= $g($fk,'1')==='1'?'checked':'' ?>>
+        <?= e($flabel) ?>
+      </label>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>
+
+
+<div class="panel">
+  <div class="panel-header"><h3><i class="fas fa-bullhorn"></i> Special Offer Popup (Homepage)</h3></div>
+  <div class="panel-body">
+    <p class="text-muted" style="margin-bottom:14px;font-size:.9rem">Shows once when a visitor opens the site (like Apex promo). Disable anytime.</p>
+    <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:14px">
+      <input type="checkbox" name="promo_enabled" value="1" <?= $g('promo_enabled','0')==='1'?'checked':'' ?>>
+      Enable special offer popup
+    </label>
+    <div class="form-row">
+      <div class="form-group"><label>Title</label><input type="text" name="promo_title" class="form-control" value="<?= e($g('promo_title')) ?>" placeholder="WEEKEND BONANZA"></div>
+      <div class="form-group"><label>Button text</label><input type="text" name="promo_btn_text" class="form-control" value="<?= e($g('promo_btn_text','Shop Now')) ?>"></div>
+    </div>
+    <div class="form-group"><label>Message</label><textarea name="promo_text" class="form-control" rows="3" placeholder="Flat 20% off on selected items"><?= e($g('promo_text')) ?></textarea></div>
+    <div class="form-group"><label>Button link</label><input type="text" name="promo_btn_link" class="form-control" value="<?= e($g('promo_btn_link','/shop.php?filter=sale')) ?>" placeholder="/shop.php?filter=sale"></div>
+    <div class="form-group">
+      <label>Promo image (optional)</label>
+      <?php if ($g('promo_image')): ?>
+        <div style="margin-bottom:8px"><img src="/<?= e(ltrim($g('promo_image'),'/')) ?>" alt="" style="max-height:120px;border-radius:10px;border:1px solid var(--color-border)"></div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.875rem;margin-bottom:8px"><input type="checkbox" name="delete_promo_image" value="1"> Remove image</label>
+      <?php endif; ?>
+      <input type="file" name="promo_image_file" accept="image/*" class="form-control">
+      <input type="hidden" name="promo_image" value="<?= e($g('promo_image')) ?>">
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><h3><i class="fas fa-star"></i> Homepage Reviews</h3></div>
+  <div class="panel-body">
+    <p class="text-muted" style="margin-bottom:14px;font-size:.9rem">Enable good reviews to show on the homepage. Only active reviews with name + text appear.</p>
+    <?php for ($ri=1;$ri<=6;$ri++): ?>
+    <div style="border:1px solid var(--color-border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:10px">
+        <input type="checkbox" name="review_<?= $ri ?>_enabled" value="1" <?= $g('review_'.$ri.'_enabled','0')==='1'?'checked':'' ?>>
+        Review #<?= $ri ?>
+      </label>
+      <div class="form-row">
+        <div class="form-group"><label>Customer name</label><input type="text" name="review_<?= $ri ?>_name" class="form-control" value="<?= e($g('review_'.$ri.'_name')) ?>"></div>
+        <div class="form-group"><label>Stars (1–5)</label>
+          <select name="review_<?= $ri ?>_stars" class="form-control">
+            <?php for ($s=5;$s>=1;$s--): ?>
+            <option value="<?= $s ?>" <?= (int)$g('review_'.$ri.'_stars','5')===$s?'selected':'' ?>><?= $s ?> stars</option>
+            <?php endfor; ?>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Review text</label><textarea name="review_<?= $ri ?>_text" class="form-control" rows="2"><?= e($g('review_'.$ri.'_text')) ?></textarea></div>
+    </div>
+    <?php endfor; ?>
   </div>
 </div>
 

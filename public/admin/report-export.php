@@ -254,6 +254,92 @@ switch ($type) {
         }
         break;
 
+    case 'daily_detail':
+        $title = 'Daily Sales Detail (' . $range . ')';
+        $fileBase = 'daily_sales_detail';
+        if ($payMethod !== '') {
+            $title .= ' — ' . ReportExport::payLabel($payMethod);
+        }
+        // For CSV/Excel: flat rows with order + item columns
+        $headers = array(
+            'Date', 'Order #', 'Time', 'Customer', 'Phone', 'Email', 'City', 'Address',
+            'Status', 'Payment Method', 'Payment Status', 'TrxID',
+            'Product', 'SKU', 'Size', 'Color', 'Unit Price', 'Qty', 'Line Total',
+            'Order Subtotal', 'Shipping', 'Order Total', 'Payment Proof'
+        );
+        $sql = "SELECT o.*, oi.product_name, oi.product_sku, oi.size, oi.color,
+                       oi.price AS item_price, oi.quantity, oi.total AS line_total,
+                       oi.product_image, oi.product_id AS item_product_id
+                FROM orders o
+                LEFT JOIN order_items oi ON oi.order_id = o.id
+                WHERE o.created_at BETWEEN ? AND ?";
+        $params = array($fromDt, $toDt);
+        if ($payMethod !== '') {
+            $sql .= " AND o.payment_method = ?";
+            $params[] = $payMethod;
+        }
+        $sql .= " ORDER BY o.created_at DESC, oi.id ASC";
+        $list = Database::fetchAll($sql, $params);
+
+        // For PDF we pass structured data via $meta
+        $pdfOrders = array();
+        $seen = array();
+        foreach ($list as $r) {
+            $oid = (int)$r['id'];
+            $trx = !empty($r['transaction_id']) ? $r['transaction_id'] : '';
+            $proof = !empty($r['payment_proof']) ? $r['payment_proof'] : '';
+            if ($proof === '' && !empty($r['notes']) && preg_match('/Payment proof(?: file)?:\s*(\S+)/i', $r['notes'], $m)) {
+                $proof = $m[1];
+            }
+            if ($trx === '' && !empty($r['notes']) && preg_match('/TrxID:\s*([^\|\n]+)/i', $r['notes'], $m)) {
+                $trx = trim($m[1]);
+            }
+
+            $rows[] = array(
+                date('Y-m-d', strtotime($r['created_at'])),
+                $r['order_number'],
+                date('H:i', strtotime($r['created_at'])),
+                $r['customer_name'],
+                $r['customer_phone'],
+                $r['customer_email'],
+                $r['shipping_city'],
+                $r['shipping_address'],
+                $r['status'],
+                ReportExport::payLabel($r['payment_method']),
+                $r['payment_status'],
+                $trx,
+                $r['product_name'],
+                $r['product_sku'],
+                $r['size'],
+                $r['color'],
+                $r['item_price'],
+                $r['quantity'],
+                $r['line_total'],
+                $r['subtotal'],
+                $r['shipping_cost'],
+                $r['total'],
+                $proof,
+            );
+
+            if (!isset($seen[$oid])) {
+                $seen[$oid] = true;
+                $pdfOrders[$oid] = array(
+                    'order' => $r,
+                    'trx' => $trx,
+                    'proof' => $proof,
+                    'items' => array(),
+                );
+            }
+            if (!empty($r['product_name'])) {
+                $pdfOrders[$oid]['items'][] = $r;
+            }
+        }
+        $meta['daily_detail'] = true;
+        $meta['pdf_orders'] = array_values($pdfOrders);
+        $meta['from'] = $from;
+        $meta['to'] = $to;
+        break;
+
     default: // overview summary lines
         $title = 'Overview Summary (' . $range . ')';
         $fileBase = 'overview';

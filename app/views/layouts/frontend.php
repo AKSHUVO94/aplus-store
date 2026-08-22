@@ -17,17 +17,26 @@ try {
 <title><?= e(isset($pageTitle) ? $pageTitle . ' — ' . $siteName : $siteName . ' — ' . $tagline) ?></title>
 <meta name="description" content="<?= e(isset($pageDescription) ? $pageDescription : setting('site_description')) ?>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="<?= asset('css/app.css') ?>">
-<link rel="stylesheet" href="<?= asset('css/pro.css') ?>">
+<link rel="stylesheet" href="<?= asset('css/app.css') ?>?v=20260822f">
+<link rel="stylesheet" href="<?= asset('css/pro.css') ?>?v=20260822f">
 <style><?= Theme::cssVariables() ?></style>
 </head>
 <body>
-<header class="site-header pro-header">
+<?php
+  $headerLogo = setting('brand_logo', '');
+  $headerLogoUrl = $headerLogo !== '' ? '/' . ltrim(str_replace('\\', '/', $headerLogo), '/') : '';
+  $qSearch = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
+?>
+<header class="site-header pro-header std-header">
   <div class="container header-inner">
-    <a href="/" class="logo pro-logo">A<span>K</span></a>
+    <a href="/" class="brand-link">
+      <?php if ($headerLogoUrl !== ''): ?>
+        <img src="<?= e($headerLogoUrl) ?>" alt="<?= e($siteName) ?>" class="header-logo-img">
+      <?php endif; ?>
+      <span class="logo pro-logo">A<span>K</span></span>
+    </a>
 
     <nav class="nav pro-nav" id="main-nav">
-      <a href="/" class="<?= activeClass('/') ?>">Home</a>
       <a href="/shop.php" class="<?= activeClass('/shop') ?>">Shop</a>
       <div class="nav-dropdown">
         <button type="button" class="nav-drop-btn" aria-expanded="false">
@@ -42,26 +51,35 @@ try {
       </div>
       <a href="/index.php?route=about">About</a>
       <a href="/index.php?route=contact">Contact</a>
-      <a href="/cart.php" class="nav-cart-mobile">Cart (<?= (int)$cartCount ?>)</a>
-      <?php if (Auth::checkCustomer()): ?>
-      <a href="/my-account.php" class="nav-cart-mobile">My Account</a>
-      <?php else: ?>
-      <a href="/login.php" class="nav-cart-mobile">Login</a>
-      <?php endif; ?>
     </nav>
+
+    <form class="header-search" action="/shop.php" method="get" role="search">
+      <input type="search" name="q" value="<?= e($qSearch) ?>" placeholder="Search for products" aria-label="Search products" autocomplete="off">
+      <button type="submit" aria-label="Search"><i class="fas fa-search"></i></button>
+    </form>
 
     <div class="header-actions">
       <div class="theme-switcher">
-        <button type="button" class="icon-btn theme-btn" title="Theme" aria-label="Theme">
-          <i class="fas fa-palette"></i>
+        <button type="button" class="icon-btn theme-btn theme-btn-dots" title="Change theme" aria-label="Change theme">
+          <span class="theme-dots" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </span>
         </button>
-        <div class="theme-dropdown">
-          <?php foreach ($themes as $t): ?>
-          <div class="theme-option <?= $t['slug'] === $currentTheme['slug'] ? 'active' : '' ?>" data-theme="<?= e($t['slug']) ?>">
-            <span class="theme-swatch" style="background:linear-gradient(135deg,<?= e($t['primary_color']) ?>,<?= e($t['secondary_color']) ?>)"></span>
-            <?= e($t['name']) ?>
+        <div class="theme-dropdown" role="menu">
+          <div class="theme-dd-head">Choose theme</div>
+          <div class="theme-dd-grid">
+            <?php foreach ($themes as $t): ?>
+            <button type="button" class="theme-option <?= $t['slug'] === $currentTheme['slug'] ? 'active' : '' ?>" data-theme="<?= e($t['slug']) ?>" role="menuitem">
+              <span class="theme-preview" style="background:<?= e($t['background'] ?? '#f8fafc') ?>">
+                <span class="tp-bar" style="background:<?= e($t['surface'] ?? '#fff') ?>"></span>
+                <span class="tp-dot" style="background:<?= e($t['primary_color']) ?>"></span>
+                <span class="tp-dot2" style="background:<?= e($t['secondary_color']) ?>"></span>
+              </span>
+              <span class="theme-name"><?= e($t['name']) ?></span>
+              <?php if ($t['slug'] === $currentTheme['slug']): ?><i class="fas fa-check theme-check"></i><?php endif; ?>
+            </button>
+            <?php endforeach; ?>
           </div>
-          <?php endforeach; ?>
         </div>
       </div>
 
@@ -78,12 +96,6 @@ try {
         <?php if ($cartCount > 0): ?><span class="cart-badge"><?= (int)$cartCount ?></span><?php endif; ?>
       </a>
 
-      <?php if (Auth::checkAdmin()): ?>
-      <a href="/admin/" class="btn btn-sm btn-primary header-admin-btn">Admin</a>
-      <?php else: ?>
-      <a href="/admin/login.php" class="btn btn-sm btn-outline header-admin-btn">Admin</a>
-      <?php endif; ?>
-
       <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Menu">
         <i class="fas fa-bars"></i>
       </button>
@@ -93,45 +105,73 @@ try {
 
 <main><?= isset($content) ? $content : '' ?></main>
 
-<footer class="site-footer pro-footer">
-  <div class="container">
-    <div class="footer-top">
-      <div class="footer-brand">
-        <a href="/" class="logo pro-logo">A<span>K</span></a>
-        <p><?= e(setting('site_description', 'Premium clothing for modern lifestyle. Quality fabrics, timeless design.')) ?></p>
-        <div class="footer-social">
-          <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-          <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-          <a href="#" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
-          <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+<?php
+  $brandLogo = setting('brand_logo', '');
+  $brandLogoUrl = $brandLogo !== '' ? '/' . ltrim(str_replace('\\', '/', $brandLogo), '/') : '';
+?>
+<footer class="site-footer pro-footer std-footer">
+  <div class="footer-inner">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="/" class="footer-brand-logo">
+            <?php if ($brandLogoUrl !== ''): ?>
+              <img src="<?= e($brandLogoUrl) ?>" alt="<?= e($siteName) ?>">
+            <?php else: ?>
+              <span class="logo pro-logo">A<span>K</span></span>
+            <?php endif; ?>
+          </a>
+          <p><?= e(setting('site_description', 'Premium clothing for modern lifestyle. Quality fabrics, timeless design.')) ?></p>
         </div>
-      </div>
-      <div class="footer-col">
-        <h4>Shop</h4>
-        <a href="/shop.php">All Products</a>
-        <?php foreach (array_slice($categories, 0, 5) as $cat): ?>
-        <a href="/index.php?route=category&slug=<?= e($cat['slug']) ?>"><?= e($cat['name']) ?></a>
-        <?php endforeach; ?>
-      </div>
-      <div class="footer-col">
-        <h4>Help</h4>
-        <a href="/track-order.php">Track Order</a>
-        <a href="/index.php?route=contact">Contact Us</a>
-        <a href="/index.php?route=about">About AK</a>
-        <a href="/login.php">My Account</a>
-      </div>
-      <div class="footer-col">
-        <h4>Contact</h4>
-        <a href="mailto:<?= e(setting('site_email', 'hello@ak.com')) ?>"><?= e(setting('site_email', 'hello@ak.com')) ?></a>
-        <a href="tel:<?= e(preg_replace('/\s+/', '', setting('site_phone', ''))) ?>"><?= e(setting('site_phone', '01700000000')) ?></a>
-        <p class="footer-address"><?= e(setting('site_address', 'Dhaka, Bangladesh')) ?></p>
+        <div class="footer-col">
+          <h4>Our Category</h4>
+          <?php foreach (array_slice($categories, 0, 6) as $cat): ?>
+          <a href="/index.php?route=category&slug=<?= e($cat['slug']) ?>"><?= e($cat['name']) ?></a>
+          <?php endforeach; ?>
+          <?php if (empty($categories)): ?>
+          <a href="/shop.php">All Products</a>
+          <?php endif; ?>
+        </div>
+        <div class="footer-col">
+          <h4>Useful Links</h4>
+          <a href="/index.php?route=about">About Us</a>
+          <a href="/index.php?route=contact">Contact Us</a>
+          <a href="/track-order.php">Track Order</a>
+          <a href="/my-account.php">My Account</a>
+          <a href="/shop.php">Shop</a>
+        </div>
+        <div class="footer-col footer-contact">
+          <h4>Contact Us</h4>
+          <a href="tel:<?= e(preg_replace('/\s+/', '', setting('site_phone', ''))) ?>"><i class="fas fa-phone"></i> Phone: <?= e(setting('site_phone', '01700000000')) ?></a>
+          <a href="mailto:<?= e(setting('site_email', 'hello@ak.com')) ?>"><i class="fas fa-envelope"></i> Mail: <?= e(setting('site_email', 'hello@ak.com')) ?></a>
+          <div class="footer-social footer-social-brand">
+            <?php
+              $fbOn = setting('social_facebook_enabled','1') === '1';
+              $igOn = setting('social_instagram_enabled','1') === '1';
+              $waOn = setting('social_whatsapp_enabled','1') === '1';
+              $fbUrl = setting('social_facebook_url','') ?: '#';
+              $igUrl = setting('social_instagram_url','') ?: '#';
+              $waUrl = setting('social_whatsapp_url','') ?: '#';
+            ?>
+            <?php if ($fbOn): ?><a href="<?= e($fbUrl) ?>" class="soc fb" target="_blank" rel="noopener" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a><?php endif; ?>
+            <?php if ($igOn): ?><a href="<?= e($igUrl) ?>" class="soc ig" target="_blank" rel="noopener" aria-label="Instagram"><i class="fab fa-instagram"></i></a><?php endif; ?>
+            <?php if ($waOn): ?><a href="<?= e($waUrl) ?>" class="soc wa" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a><?php endif; ?>
+          </div>
+        </div>
       </div>
     </div>
     <div class="footer-bottom">
-      <span>&copy; <?= date('Y') ?> <?= e($siteName) ?>. All rights reserved.</span>
-      <span class="footer-payments">
-        <span>COD</span><span>bKash</span><span>Nagad</span><span>Bank</span>
-      </span>
+      <div class="container footer-bottom-inner">
+        <span>&copy; <?= date('Y') ?> <?= e($siteName) ?>. All rights reserved.</span>
+        <div class="pay-logos" aria-label="Payment methods">
+          <?php if (setting('footer_pay_cod','1') === '1'): ?><span class="pay-logo pay-cod" title="Cash on Delivery">COD</span><?php endif; ?>
+          <?php if (setting('footer_pay_bkash','1') === '1'): ?><span class="pay-logo pay-bkash" title="bKash">bKash</span><?php endif; ?>
+          <?php if (setting('footer_pay_nagad','1') === '1'): ?><span class="pay-logo pay-nagad" title="Nagad">Nagad</span><?php endif; ?>
+          <?php if (setting('footer_pay_rocket','1') === '1'): ?><span class="pay-logo pay-rocket" title="Rocket">Rocket</span><?php endif; ?>
+          <?php if (setting('footer_pay_visa','1') === '1'): ?><span class="pay-logo pay-visa" title="Visa">VISA</span><?php endif; ?>
+          <?php if (setting('footer_pay_mc','1') === '1'): ?><span class="pay-logo pay-mc" title="Mastercard">MC</span><?php endif; ?>
+        </div>
+      </div>
     </div>
   </div>
 </footer>
@@ -205,6 +245,51 @@ try {
 })();
 </script>
 
-<script src="<?= asset('js/app.js') ?>"></script>
+
+<?php
+  $promoOn = setting('promo_enabled', '0') === '1';
+  $promoTitle = setting('promo_title', '');
+  $promoText = setting('promo_text', '');
+  $promoBtn = setting('promo_btn_text', 'Shop Now');
+  $promoLink = setting('promo_btn_link', '/shop.php');
+  $promoImg = setting('promo_image', '');
+  $promoImgUrl = $promoImg !== '' ? '/' . ltrim(str_replace('\\', '/', $promoImg), '/') : '';
+?>
+<?php if ($promoOn && ($promoTitle !== '' || $promoImgUrl !== '')): ?>
+<div class="promo-overlay" id="promo-overlay" hidden>
+  <div class="promo-modal" role="dialog" aria-modal="true" aria-label="Special offer">
+    <button type="button" class="promo-close" id="promo-close" aria-label="Close">&times;</button>
+    <div class="promo-grid">
+      <?php if ($promoImgUrl): ?>
+      <div class="promo-visual"><img src="<?= e($promoImgUrl) ?>" alt="<?= e($promoTitle) ?>"></div>
+      <?php endif; ?>
+      <div class="promo-body">
+        <?php if ($promoTitle): ?><h2><?= e($promoTitle) ?></h2><?php endif; ?>
+        <?php if ($promoText): ?><p><?= nl2br(e($promoText)) ?></p><?php endif; ?>
+        <a href="<?= e($promoLink ?: '/shop.php') ?>" class="btn btn-primary btn-lg"><?= e($promoBtn ?: 'Shop Now') ?></a>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var key = 'ak_promo_seen_v1';
+  var el = document.getElementById('promo-overlay');
+  if (!el) return;
+  try { if (localStorage.getItem(key)) return; } catch(e) {}
+  function open(){ el.hidden = false; document.body.style.overflow = 'hidden'; }
+  function close(){
+    el.hidden = true; document.body.style.overflow = '';
+    try { localStorage.setItem(key, '1'); } catch(e) {}
+  }
+  setTimeout(open, 800);
+  var c = document.getElementById('promo-close');
+  if (c) c.addEventListener('click', close);
+  el.addEventListener('click', function(e){ if (e.target === el) close(); });
+})();
+</script>
+<?php endif; ?>
+
+<script src="<?= asset('js/app.js') ?>?v=20260822f"></script>
 </body>
 </html>

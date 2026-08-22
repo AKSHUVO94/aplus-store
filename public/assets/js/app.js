@@ -20,8 +20,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     var opts = document.querySelectorAll('.theme-option');
     for (var i = 0; i < opts.length; i++) {
-      opts[i].addEventListener('click', function () {
+      opts[i].addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
         var slug = this.getAttribute('data-theme');
+        if (!slug) return;
+        for (var j = 0; j < opts.length; j++) opts[j].classList.remove('active');
+        this.classList.add('active');
         fetch('/api-theme.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

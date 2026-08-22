@@ -61,6 +61,7 @@ $notifCount = $pendingOrders + $newMessages;
       <?php if ($pendingOrders > 0): ?><span class="sidebar-badge" id="sidebar-order-badge"><?= $pendingOrders ?></span><?php endif; ?>
     </a>
     <a href="/admin/customers.php" class="nav-link <?= activeClass('/admin/customers') ?>"><i class="fas fa-user-friends"></i> Customers</a>
+    <a href="/admin/reviews.php" class="nav-link <?= activeClass('/admin/reviews') ?>"><i class="fas fa-star"></i> Reviews</a>
     <div class="nav-section-title">System</div>
     <a href="/admin/banners.php" class="nav-link <?= activeClass('/admin/banners') ?>"><i class="fas fa-images"></i> Banners</a>
     <a href="/admin/themes.php" class="nav-link <?= activeClass('/admin/themes') ?>"><i class="fas fa-palette"></i> Themes</a>
@@ -93,8 +94,7 @@ $notifCount = $pendingOrders + $newMessages;
             <div class="notif-empty">Loading…</div>
           </div>
           <div class="notif-footer">
-            <a href="/admin/reports.php" class="nav-link <?= activeClass('/admin/reports') ?>"><i class="fas fa-chart-bar"></i> Reports</a>
-    <a href="/admin/orders.php" style="font-size:.85rem;font-weight:600;color:var(--color-primary)">View all orders</a>
+            <a href="/admin/orders.php" style="font-size:.85rem;font-weight:600;color:var(--color-primary)">View all orders</a>
           </div>
         </div>
       </div>
