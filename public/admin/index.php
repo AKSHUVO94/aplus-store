@@ -17,20 +17,121 @@ $stats = [
 
 $recentOrders = Database::fetchAll("SELECT * FROM orders ORDER BY created_at DESC LIMIT 8");
 $outOfStockProducts = Database::fetchAll(
-    "SELECT p.id, p.name, p.sku, p.stock, p.image,
+    "SELECT p.id, p.name, p.sku, p.stock,
       (SELECT image_path FROM product_images WHERE product_id=p.id ORDER BY is_primary DESC LIMIT 1) as thumb
      FROM products p WHERE p.stock <= 0 AND p.status='active' ORDER BY p.name LIMIT 10"
 );
 $lowStockProducts = Database::fetchAll(
-    "SELECT p.id, p.name, p.sku, p.stock, p.image,
+    "SELECT p.id, p.name, p.sku, p.stock,
       (SELECT image_path FROM product_images WHERE product_id=p.id ORDER BY is_primary DESC LIMIT 1) as thumb
      FROM products p WHERE p.stock > 0 AND p.stock <= 5 AND p.status='active' ORDER BY p.stock ASC LIMIT 8"
 );
 $topProducts = Database::fetchAll(
-    "SELECT p.name, p.stock, p.price, p.sale_price, p.image, p.id,
+    "SELECT p.name, p.stock, p.price, p.sale_price, p.id,
       (SELECT image_path FROM product_images WHERE product_id=p.id ORDER BY is_primary DESC LIMIT 1) as thumb
      FROM products p WHERE p.status='active' ORDER BY p.views DESC LIMIT 5"
 );
+
+// ===== Chart data: last 14 days sales =====
+$salesChartRows = Database::fetchAll(
+    "SELECT DATE(created_at) AS d,
+            COUNT(*) AS orders_count,
+            COALESCE(SUM(CASE WHEN status NOT IN ('cancelled') THEN total ELSE 0 END),0) AS revenue
+     FROM orders
+     WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+     GROUP BY DATE(created_at)
+     ORDER BY d ASC"
+);
+$chartLabels = [];
+$chartRevenue = [];
+$chartOrders = [];
+$byDate = [];
+foreach ($salesChartRows as $r) {
+    $byDate[$r['d']] = $r;
+}
+for ($i = 13; $i >= 0; $i--) {
+    $d = date('Y-m-d', strtotime("-{$i} days"));
+    $chartLabels[] = date('d M', strtotime($d));
+    $chartRevenue[] = isset($byDate[$d]) ? (float)$byDate[$d]['revenue'] : 0;
+    $chartOrders[]  = isset($byDate[$d]) ? (int)$byDate[$d]['orders_count'] : 0;
+}
+
+// Orders by status
+$statusRows = Database::fetchAll(
+    "SELECT status, COUNT(*) AS cnt FROM orders GROUP BY status ORDER BY cnt DESC"
+);
+$statusLabels = [];
+$statusCounts = [];
+$statusColorsMap = [
+    'pending'    => '#f59e0b',
+    'confirmed'  => '#3b82f6',
+    'processing' => '#8b5cf6',
+    'shipped'    => '#06b6d4',
+    'delivered'  => '#22c55e',
+    'cancelled'  => '#ef4444',
+];
+$statusBg = [];
+foreach ($statusRows as $r) {
+    $statusLabels[] = ucfirst($r['status']);
+    $statusCounts[] = (int)$r['cnt'];
+    $statusBg[] = $statusColorsMap[$r['status']] ?? '#94a3b8';
+}
+
+// Top products by quantity sold (excl. cancelled)
+$topSoldRows = Database::fetchAll(
+    "SELECT oi.product_name,
+            SUM(oi.quantity) AS qty_sold,
+            COALESCE(SUM(oi.total),0) AS revenue
+     FROM order_items oi
+     INNER JOIN orders o ON o.id = oi.order_id
+     WHERE o.status NOT IN ('cancelled')
+     GROUP BY oi.product_name
+     ORDER BY qty_sold DESC
+     LIMIT 8"
+);
+$topSoldLabels = [];
+$topSoldQty = [];
+$topSoldRev = [];
+foreach ($topSoldRows as $r) {
+    $name = $r['product_name'];
+    if (mb_strlen($name) > 22) $name = mb_substr($name, 0, 20) . '…';
+    $topSoldLabels[] = $name;
+    $topSoldQty[] = (int)$r['qty_sold'];
+    $topSoldRev[] = (float)$r['revenue'];
+}
+
+// Payment methods
+$payRows = Database::fetchAll(
+    "SELECT payment_method, COUNT(*) AS cnt,
+            COALESCE(SUM(CASE WHEN status NOT IN ('cancelled') THEN total ELSE 0 END),0) AS amount
+     FROM orders
+     GROUP BY payment_method
+     ORDER BY cnt DESC"
+);
+$payLabels = [];
+$payCounts = [];
+$payAmounts = [];
+$payColorMap = [
+    'cod' => '#f59e0b',
+    'bkash' => '#e11d48',
+    'nagad' => '#ea580c',
+    'rocket' => '#7c3aed',
+    'bank' => '#2563eb',
+    'card' => '#0891b2',
+    'visa' => '#1d4ed8',
+    'mastercard' => '#dc2626',
+];
+$payBg = [];
+foreach ($payRows as $r) {
+    $payLabels[] = strtoupper($r['payment_method']);
+    $payCounts[] = (int)$r['cnt'];
+    $payAmounts[] = (float)$r['amount'];
+    $payBg[] = $payColorMap[$r['payment_method']] ?? '#64748b';
+}
+
+// Date range for export links (this month)
+$exportFrom = date('Y-m-01');
+$exportTo = date('Y-m-d');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['quick_order_id'], $_POST['quick_status'])) {
     $oid = (int)$_POST['quick_order_id'];
@@ -174,6 +275,72 @@ ob_start();
   <a href="/" target="_blank"><i class="fas fa-store"></i> View Store</a>
 </div>
 
+<!-- ===== CHARTS ===== -->
+<div class="charts-grid" style="display:grid;grid-template-columns:1.6fr 1fr;gap:20px;margin-bottom:20px">
+  <div class="panel">
+    <div class="panel-header">
+      <h3><i class="fas fa-chart-line" style="color:var(--color-primary);margin-right:6px"></i> Sales (Last 14 Days)</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <a href="/admin/report-export.php?type=sales&format=excel&from=<?= e($exportFrom) ?>&to=<?= e($exportTo) ?>" class="btn btn-sm btn-outline" title="Download Excel"><i class="fas fa-file-excel"></i> Excel</a>
+        <a href="/admin/report-export.php?type=daily_detail&format=pdf&from=<?= e($exportFrom) ?>&to=<?= e($exportTo) ?>" class="btn btn-sm btn-outline" target="_blank" title="Download PDF"><i class="fas fa-file-pdf"></i> PDF</a>
+        <a href="/admin/reports.php?report=sales" class="btn btn-sm btn-primary">Full Report</a>
+      </div>
+    </div>
+    <div class="panel-body">
+      <canvas id="salesChart" height="110"></canvas>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">
+      <h3><i class="fas fa-chart-pie" style="color:var(--color-primary);margin-right:6px"></i> Orders by Status</h3>
+      <div style="display:flex;gap:6px">
+        <a href="/admin/report-export.php?type=orders_status&format=excel&from=<?= e($exportFrom) ?>&to=<?= e($exportTo) ?>" class="btn btn-sm btn-outline"><i class="fas fa-file-excel"></i></a>
+        <a href="/admin/reports.php?report=orders_status" class="btn btn-sm btn-primary">Report</a>
+      </div>
+    </div>
+    <div class="panel-body" style="display:flex;justify-content:center">
+      <div style="max-width:260px;width:100%">
+        <canvas id="statusChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="charts-grid" style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:24px">
+  <div class="panel">
+    <div class="panel-header">
+      <h3><i class="fas fa-fire" style="color:var(--color-primary);margin-right:6px"></i> Top Selling Products</h3>
+      <div style="display:flex;gap:6px">
+        <a href="/admin/report-export.php?type=top_products&format=excel&from=<?= e($exportFrom) ?>&to=<?= e($exportTo) ?>" class="btn btn-sm btn-outline"><i class="fas fa-file-excel"></i> Excel</a>
+        <a href="/admin/reports.php?report=top_products" class="btn btn-sm btn-primary">Report</a>
+      </div>
+    </div>
+    <div class="panel-body">
+      <canvas id="topProductsChart" height="140"></canvas>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">
+      <h3><i class="fas fa-wallet" style="color:var(--color-primary);margin-right:6px"></i> Payment Methods</h3>
+      <div style="display:flex;gap:6px">
+        <a href="/admin/report-export.php?type=payments&format=excel&from=<?= e($exportFrom) ?>&to=<?= e($exportTo) ?>" class="btn btn-sm btn-outline"><i class="fas fa-file-excel"></i></a>
+        <a href="/admin/reports.php?report=payments" class="btn btn-sm btn-primary">Report</a>
+      </div>
+    </div>
+    <div class="panel-body" style="display:flex;justify-content:center">
+      <div style="max-width:260px;width:100%">
+        <canvas id="paymentChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+@media(max-width:1000px){
+  .charts-grid{grid-template-columns:1fr!important}
+}
+.panel-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+</style>
+
 <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:start">
   <!-- Recent Orders -->
   <div class="panel">
@@ -305,6 +472,187 @@ ob_start();
   </div>
 </div>
 <style>@media(max-width:1000px){div[style*="grid-template-columns:1.4fr"]{grid-template-columns:1fr!important}}</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  // Sales Line Chart
+  var salesCtx = document.getElementById('salesChart');
+  if (salesCtx) {
+    new Chart(salesCtx, {
+      type: 'line',
+      data: {
+        labels: <?= json_encode($chartLabels) ?>,
+        datasets: [
+          {
+            label: 'Revenue',
+            data: <?= json_encode($chartRevenue) ?>,
+            borderColor: '#4e73df',
+            backgroundColor: 'rgba(78,115,223,0.12)',
+            borderWidth: 2.5,
+            tension: 0.35,
+            fill: true,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Orders',
+            data: <?= json_encode($chartOrders) ?>,
+            borderColor: '#1cc88a',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [5, 4],
+            tension: 0.35,
+            fill: false,
+            pointRadius: 3,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                if (ctx.dataset.label === 'Revenue') {
+                  return ' Revenue: ৳' + Number(ctx.raw).toLocaleString();
+                }
+                return ' Orders: ' + ctx.raw;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            beginAtZero: true,
+            ticks: {
+              callback: function(v) { return '৳' + v.toLocaleString(); }
+            },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            beginAtZero: true,
+            grid: { drawOnChartArea: false },
+            ticks: { stepSize: 1 }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Orders Status Doughnut
+  var statusCtx = document.getElementById('statusChart');
+  if (statusCtx) {
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: <?= json_encode($statusLabels) ?>,
+        datasets: [{
+          data: <?= json_encode($statusCounts) ?>,
+          backgroundColor: <?= json_encode($statusBg) ?>,
+          borderWidth: 0,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '62%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 14, usePointStyle: true }
+          }
+        }
+      }
+    });
+  }
+
+  // Top Products Bar Chart
+  var topCtx = document.getElementById('topProductsChart');
+  if (topCtx) {
+    new Chart(topCtx, {
+      type: 'bar',
+      data: {
+        labels: <?= json_encode($topSoldLabels) ?>,
+        datasets: [{
+          label: 'Units Sold',
+          data: <?= json_encode($topSoldQty) ?>,
+          backgroundColor: 'rgba(78,115,223,0.75)',
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              afterLabel: function(ctx) {
+                var revs = <?= json_encode($topSoldRev) ?>;
+                return 'Revenue: ৳' + Number(revs[ctx.dataIndex] || 0).toLocaleString();
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Payment Methods Doughnut
+  var payCtx = document.getElementById('paymentChart');
+  if (payCtx) {
+    new Chart(payCtx, {
+      type: 'doughnut',
+      data: {
+        labels: <?= json_encode($payLabels) ?>,
+        datasets: [{
+          data: <?= json_encode($payCounts) ?>,
+          backgroundColor: <?= json_encode($payBg) ?>,
+          borderWidth: 0,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '58%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 12, usePointStyle: true }
+          },
+          tooltip: {
+            callbacks: {
+              afterLabel: function(ctx) {
+                var amts = <?= json_encode($payAmounts) ?>;
+                return 'Amount: ৳' + Number(amts[ctx.dataIndex] || 0).toLocaleString();
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+})();
+</script>
 <?php
 $content = ob_get_clean();
 require dirname(__DIR__, 2) . '/app/views/layouts/admin.php';

@@ -26,5 +26,10 @@ if ($result === true) {
     flash('error', is_string($result) ? $result : 'Could not add product.');
 }
 
+$go = isset($_POST['redirect']) ? trim($_POST['redirect']) : '';
+if ($result === true && $go === 'cart') {
+    redirect('/cart.php');
+}
+
 $ref = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '/shop.php';
 redirect($ref);

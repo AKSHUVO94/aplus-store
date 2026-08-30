@@ -12,6 +12,7 @@ require_once __DIR__.'/helpers/functions.php';
 require_once __DIR__.'/helpers/ProductImage.php';
 require_once __DIR__.'/helpers/Security.php';
 require_once __DIR__.'/helpers/Customer.php';
+require_once __DIR__.'/helpers/Coupon.php';
 require_once __DIR__.'/helpers/Mailer.php';
 require_once __DIR__.'/helpers/ReportExport.php';
 Auth::startSession();

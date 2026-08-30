@@ -179,16 +179,16 @@ function brand_watermark_html() {
 function render_product_card($p) {
     $thumb = ProductImage::productThumb($p);
     $oos = (int)$p['stock'] <= 0;
-    $href = '/index.php?route=product&slug=' . e($p['slug']);
+    $href = '/product.php?slug=' . rawurlencode($p['slug']);
     $cat = isset($p['cat_name']) ? $p['cat_name'] : '';
     $sizes = array_values(array_filter(array_map('trim', explode(',', isset($p['sizes']) ? $p['sizes'] : ''))));
     $colors = array_values(array_filter(array_map('trim', explode(',', isset($p['colors']) ? $p['colors'] : ''))));
     $needOpts = (!$oos) && (count($sizes) > 0 || count($colors) > 0);
     ob_start();
     ?>
-    <div class="product-card <?= $oos ? 'is-oos' : '' ?>">
-      <a href="<?= $href ?>" class="product-card-link">
-        <div class="product-thumb"<?= $thumb ? ' style="background:none"' : '' ?>>
+    <div class="product-card apex-card <?= $oos ? 'is-oos' : '' ?>">
+      <div class="product-thumb"<?= $thumb ? ' style="background:none"' : '' ?>>
+        <a href="<?= $href ?>" class="product-card-link thumb-link" title="<?= e($p['name']) ?>">
           <div class="product-badges">
             <?php if ($oos): ?>
             <span class="badge-oos">Out of Stock</span>
@@ -202,13 +202,16 @@ function render_product_card($p) {
             <?php endif; ?>
           </div>
           <?php if ($thumb): ?>
-          <img src="<?= e($thumb) ?>" alt="<?= e($p['name']) ?>" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0<?= $oos ? ';opacity:.55' : '' ?>">
+          <img src="<?= e($thumb) ?>" alt="<?= e($p['name']) ?>" draggable="false" loading="lazy" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;pointer-events:none<?= $oos ? ';opacity:.55' : '' ?>">
           <?php else: ?>
           <i class="fas fa-shirt placeholder-icon"></i>
           <?php endif; ?>
           <?= brand_watermark_html() ?>
-        </div>
-      </a>
+        </a>
+        <button type="button" class="btn-quick-view" data-qv-id="<?= (int)$p['id'] ?>" title="Quick View">
+          <i class="fas fa-eye"></i> Quick View
+        </button>
+      </div>
       <div class="product-body">
         <a href="<?= $href ?>" class="product-card-link">
           <div class="product-cat"><?= e($cat) ?></div>

@@ -1,45 +1,9 @@
 <?php
 $pageTitle = 'Home';
-// Suggested = Featured (Admin → Product → check Featured)
-$suggested = Database::fetchAll("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.status='active' AND p.is_featured=1 ORDER BY p.id DESC LIMIT 8");
+$featured = Database::fetchAll("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.status='active' AND p.is_featured=1 ORDER BY p.id DESC LIMIT 8");
 $newArrivals = Database::fetchAll("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.status='active' AND p.is_new=1 ORDER BY p.id DESC LIMIT 8");
 $saleProducts = Database::fetchAll("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.status='active' AND p.sale_price IS NOT NULL AND p.sale_price > 0 AND p.sale_price < p.price ORDER BY p.id DESC LIMIT 8");
 $cats = Database::fetchAll("SELECT * FROM categories WHERE status='active' ORDER BY sort_order LIMIT 10");
-
-$topSold = array();
-try {
-    $topSold = Database::fetchAll(
-        "SELECT p.*, c.name as cat_name, SUM(oi.quantity) AS sold_qty
-         FROM order_items oi
-         INNER JOIN orders o ON o.id = oi.order_id AND o.status NOT IN ('cancelled')
-         INNER JOIN products p ON p.id = oi.product_id AND p.status='active'
-         LEFT JOIN categories c ON c.id = p.category_id
-         GROUP BY p.id
-         ORDER BY sold_qty DESC
-         LIMIT 8"
-    );
-} catch (Exception $e) { $topSold = array(); }
-
-$topReviewed = array();
-try {
-    $topReviewed = Database::fetchAll(
-        "SELECT p.*, c.name as cat_name,
-                COUNT(r.id) AS review_count,
-                ROUND(AVG(r.rating),1) AS avg_rating
-         FROM products p
-         INNER JOIN product_reviews r ON r.product_id = p.id AND r.status='approved'
-         LEFT JOIN categories c ON c.id = p.category_id
-         WHERE p.status='active'
-         GROUP BY p.id
-         HAVING review_count > 0
-         ORDER BY avg_rating DESC, review_count DESC
-         LIMIT 8"
-    );
-} catch (Exception $e) { $topReviewed = array(); }
-
-if (empty($suggested)) {
-    $suggested = Database::fetchAll("SELECT p.*, c.name as cat_name FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.status='active' ORDER BY p.views DESC, p.id DESC LIMIT 8");
-}
 
 $banners = array();
 try {
@@ -60,67 +24,6 @@ if (empty($banners)) {
 ob_start();
 ?>
 <style>
-
-/* FORCE full bleed + kill brown theme leftovers */
-body { background: #fff !important; }
-.home-wrap { background: #f7f7f8 !important; min-height: 100vh; }
-.home-slider {
-  width: 100vw !important;
-  max-width: 100vw !important;
-  margin-left: calc(50% - 50vw) !important;
-  margin-right: calc(50% - 50vw) !important;
-  left: 0; right: 0;
-  min-height: 85vh !important;
-  height: 85vh !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
-.home-slider-track { min-height: 85vh !important; height: 100% !important; }
-.slider-nav {
-  background: #fff !important;
-  color: #111 !important;
-  border: 1px solid #e5e5e5 !important;
-  box-shadow: 0 2px 12px rgba(0,0,0,.12) !important;
-}
-.home-slide-actions .btn-solid {
-  background: #111 !important;
-  color: #fff !important;
-  border-radius: 6px !important;
-}
-.home-slide-actions .btn-solid:hover {
-  background: var(--color-primary, #e11d48) !important;
-}
-.home-slide-actions .btn-light-outline {
-  border-radius: 6px !important;
-}
-.home-slide-content .badge {
-  background: rgba(255,255,255,.95) !important;
-  color: #111 !important;
-  border-radius: 4px !important;
-}
-.home-breadcrumb-bar { background: #fff !important; border-bottom: 1px solid #eee !important; }
-.home-breadcrumb-bar a {
-  background: transparent !important;
-  border: 0 !important;
-  border-bottom: 2px solid transparent !important;
-  color: #555 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
-.home-breadcrumb-bar a.primary {
-  background: transparent !important;
-  color: #111 !important;
-  font-weight: 700 !important;
-}
-.home-breadcrumb-bar a:hover {
-  background: transparent !important;
-  color: #111 !important;
-  border-bottom-color: #111 !important;
-}
-@media (max-width: 768px) {
-  .home-slider, .home-slider-track { min-height: 60vh !important; height: 60vh !important; }
-}
-
 /* ===== Classy standard homepage ===== */
 .home-wrap { background: #fafafa; color: #111; }
 
@@ -273,49 +176,41 @@ body { background: #fff !important; }
 .home-breadcrumb-bar {
   background: #fff;
   border-bottom: 1px solid #eee;
-  padding: 0;
+  padding: 14px 0;
 }
 .home-breadcrumb-bar .inner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0;
+  gap: 8px;
 }
 .home-breadcrumb-bar a {
   display: inline-flex;
   align-items: center;
-  padding: 14px 16px;
-  border-radius: 0;
-  font-size: .875rem;
-  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: .85rem;
+  font-weight: 600;
   text-decoration: none;
-  color: #555;
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  transition: color .15s, border-color .15s;
+  color: #444;
+  background: #f4f4f5;
+  border: 1px solid transparent;
+  transition: background .15s, color .15s, border-color .15s;
 }
 .home-breadcrumb-bar a:hover {
-  background: transparent;
-  color: #111;
-  border-bottom-color: #111;
+  background: #111;
+  color: #fff;
 }
 .home-breadcrumb-bar a.primary {
-  background: transparent;
-  color: #111;
-  font-weight: 700;
-  border-bottom-color: transparent;
-}
-.home-breadcrumb-bar a.primary:hover {
-  border-bottom-color: #111;
+  background: #111;
+  color: #fff;
 }
 .home-breadcrumb-bar .sep {
   width: 1px;
-  height: 16px;
+  height: 20px;
   background: #e5e5e5;
   margin: 0 4px;
-  align-self: center;
 }
 
 /* Sections */
@@ -390,99 +285,35 @@ body { background: #fff !important; }
 
 /* Offers – simple elegant */
 .offers-block {
-  background: #fff;
-  padding: 48px 0 56px;
-  color: #111;
-  border-top: 1px solid #eee;
-  border-bottom: 1px solid #eee;
-}
-.offers-block .home-section-head .label {
-  color: #c1121f;
-  font-weight: 700;
-}
-.offers-block .home-section-head h2 { color: #111; }
-.offers-block .view-all {
-  color: #111 !important;
-  border-color: #111 !important;
-}
-.offers-block .product-card,
-.offers-block .apex-card {
-  border: 1px solid #ececec;
-}
-
-/* Features — pro trust strip */
-.features-row {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 12px;
-  padding: 0;
-  border: none;
-  background: transparent;
-}
-.feat-item {
-  text-align: left;
-  padding: 20px 16px;
-  border: 1px solid #ececec;
-  border-radius: 14px;
-  background: #fff;
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  transition: border-color .2s ease, box-shadow .25s ease, transform .2s ease;
-}
-.feat-item:hover {
-  border-color: #ddd;
-  box-shadow: 0 8px 24px rgba(0,0,0,.05);
-  transform: translateY(-2px);
-}
-.feat-item .feat-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 11px;
-  background: #f6f6f6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background .2s ease;
-}
-.feat-item:hover .feat-icon {
   background: #111;
-}
-.feat-item .feat-icon i {
-  font-size: 1rem;
-  color: #111;
-  margin: 0;
-  opacity: 1;
-  width: auto;
-  transition: color .2s ease;
-}
-.feat-item:hover .feat-icon i {
+  padding: 56px 0;
   color: #fff;
 }
-.feat-item h4 {
-  margin: 0 0 3px;
-  font-size: .82rem;
-  font-weight: 650;
-  letter-spacing: .01em;
+.offers-block .home-section-head .label { color: rgba(255,255,255,.55); }
+.offers-block .home-section-head h2 { color: #fff; }
+.offers-block .view-all { color: #fff !important; border-color: rgba(255,255,255,.5) !important; }
+.offers-block .product-card,
+.offers-block .apex-card {
+  border-color: transparent;
+}
+
+/* Features */
+.features-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  padding: 40px 0;
+  border-top: 1px solid #eee;
+}
+.feat-item { text-align: center; padding: 8px; }
+.feat-item i {
+  font-size: 1.4rem;
   color: #111;
+  margin-bottom: 10px;
+  opacity: .85;
 }
-.feat-item p {
-  margin: 0;
-  font-size: .75rem;
-  color: #888;
-  line-height: 1.45;
-}
-@media (max-width: 1100px) {
-  .features-row { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 700px) {
-  .features-row { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .feat-item { padding: 16px 12px; }
-}
-@media (max-width: 420px) {
-  .features-row { grid-template-columns: 1fr; }
-}
+.feat-item h4 { margin: 0 0 6px; font-size: .95rem; font-weight: 700; color: #111; }
+.feat-item p { margin: 0; font-size: .85rem; color: #777; line-height: 1.45; }
 
 @media (max-width: 768px) {
   .home-slider, .home-slider-track {
@@ -495,113 +326,9 @@ body { background: #fff !important; }
   .slider-nav.next { right: 10px; }
   .home-section { padding: 36px 0; }
 }
-
-.home-wrap .product-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; gap: 24px !important; }
-.home-wrap .product-thumb { aspect-ratio: 3 / 4 !important; min-height: 280px; background: #f3f3f3 !important; }
-.home-wrap .product-body { padding: 14px 16px 16px !important; }
-.home-wrap .product-name { font-size: 1rem !important; line-height: 1.35 !important; }
-.home-wrap .price-current { font-size: 1.1rem !important; }
-
-/* News ticker */
-.news-ticker {
-  display: flex;
-  align-items: stretch;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
-  min-height: 40px;
-  overflow: hidden;
-}
-.news-ticker-label {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  background: #1e3a5f;
-  color: #fff;
-  font-size: .78rem;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.news-ticker-label i { font-size: .85rem; opacity: .9; }
-.news-ticker-track {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  position: relative;
-  background: #fff;
-}
-.news-ticker-move {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  white-space: nowrap;
-  will-change: transform;
-  animation: newsTickerScroll var(--ticker-speed, 28s) linear infinite;
-}
-.news-ticker-move:hover { animation-play-state: paused; }
-.news-ticker-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 36px;
-  font-size: .88rem;
-  color: #222;
-  font-weight: 500;
-}
-.news-ticker-item i {
-  color: #1e3a5f;
-  font-size: .8rem;
-  opacity: .7;
-}
-.news-ticker-sep {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #ccc;
-  flex-shrink: 0;
-}
-@keyframes newsTickerScroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-@media (max-width: 600px) {
-  .news-ticker-label { padding: 0 10px; font-size: .7rem; }
-  .news-ticker-item { padding: 0 22px; font-size: .82rem; }
-}
-
 </style>
 
 <div class="home-wrap">
-
-<?php
-  $tickerOn = setting('news_ticker_enabled', '1') === '1';
-  $tickerLabel = setting('news_ticker_label', 'All NEWS:');
-  $tickerRaw = trim((string) setting('news_ticker_text', 'Free shipping over ৳3000 | New arrivals every week | Easy 7-day exchange'));
-  $tickerSpeed = max(8, min(120, (int) setting('news_ticker_speed', '28')));
-  $tickerItems = array_values(array_filter(array_map('trim', explode('|', $tickerRaw)), function ($t) { return $t !== ''; }));
-  if ($tickerOn && empty($tickerItems)) $tickerItems = ['Welcome to our store'];
-?>
-<?php if ($tickerOn && !empty($tickerItems)): ?>
-<div class="news-ticker" style="--ticker-speed: <?= (int)$tickerSpeed ?>s">
-  <div class="news-ticker-label"><i class="fas fa-bullhorn"></i> <?= e($tickerLabel) ?></div>
-  <div class="news-ticker-track">
-    <div class="news-ticker-move">
-      <?php
-        // Duplicate set for seamless loop
-        $loopItems = array_merge($tickerItems, $tickerItems);
-        foreach ($loopItems as $idx => $item):
-      ?>
-        <?php if ($idx > 0): ?><span class="news-ticker-sep" aria-hidden="true"></span><?php endif; ?>
-        <span class="news-ticker-item"><i class="fas fa-circle-notch"></i> <?= e($item) ?></span>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</div>
-<?php endif; ?>
 
 <!-- FULL WIDTH SLIDER -->
 <section class="home-slider" id="home-slider">
@@ -740,55 +467,34 @@ body { background: #fff !important; }
 </nav>
 
 <!-- Featured -->
-
 <section class="home-section">
   <div class="container">
     <div class="home-section-head">
-      <div><div class="label">Staff picks</div><h2>Suggested For You</h2></div>
+      <div>
+        <div class="label">Featured</div>
+        <h2>The Collection</h2>
+      </div>
       <a href="/shop.php" class="view-all">View all →</a>
     </div>
     <div class="product-grid">
-        <?php foreach ($suggested as $p): ?><?= render_product_card($p) ?><?php endforeach; ?>
-        <?php if (empty($suggested)): ?><p style="color:#888;padding:12px">Mark products as <strong>Featured</strong> in Admin → Products.</p><?php endif; ?>
+      <?php foreach ($featured as $p): ?><?= render_product_card($p) ?><?php endforeach; ?>
+      <?php if (empty($featured)): ?><p style="color:#888">No featured products yet.</p><?php endif; ?>
     </div>
   </div>
 </section>
 
+<!-- New Arrivals -->
 <section class="home-section alt">
   <div class="container">
     <div class="home-section-head">
-      <div><div class="label">Bestsellers</div><h2>Top Sold</h2></div>
-      <a href="/shop.php" class="view-all">View all →</a>
-    </div>
-    <div class="product-grid">
-        <?php foreach ($topSold as $p): ?><?= render_product_card($p) ?><?php endforeach; ?>
-        <?php if (empty($topSold)): ?><p style="color:#888;padding:12px">Will show after customer orders.</p><?php endif; ?>
-    </div>
-  </div>
-</section>
-
-<section class="home-section">
-  <div class="container">
-    <div class="home-section-head">
-      <div><div class="label">Customer favorites</div><h2>Top Reviewed</h2></div>
-      <a href="/shop.php" class="view-all">View all →</a>
-    </div>
-    <div class="product-grid">
-        <?php foreach ($topReviewed as $p): ?><?= render_product_card($p) ?><?php endforeach; ?>
-        <?php if (empty($topReviewed)): ?><p style="color:#888;padding:12px">Approve reviews in Admin to rank products here.</p><?php endif; ?>
-    </div>
-  </div>
-</section>
-
-<section class="home-section alt">
-  <div class="container">
-    <div class="home-section-head">
-      <div><div class="label">Just dropped</div><h2>New Arrivals</h2></div>
+      <div>
+        <div class="label">Just Dropped</div>
+        <h2>New Arrivals</h2>
+      </div>
       <a href="/shop.php?filter=new" class="view-all">View all →</a>
     </div>
     <div class="product-grid">
-        <?php foreach ($newArrivals as $p): ?><?= render_product_card($p) ?><?php endforeach; ?>
-        <?php if (empty($newArrivals)): ?><p style="color:#888;padding:12px">Mark products as <strong>New</strong> in Admin.</p><?php endif; ?>
+      <?php foreach ($newArrivals as $p): ?><?= render_product_card($p) ?><?php endforeach; ?>
     </div>
   </div>
 </section>
@@ -797,61 +503,26 @@ body { background: #fff !important; }
 <section class="offers-block">
   <div class="container">
     <div class="home-section-head">
-      <div><div class="label">Limited time</div><h2>Sale &amp; Offers</h2></div>
+      <div>
+        <div class="label">Limited time</div>
+        <h2>Sale &amp; Offers</h2>
+      </div>
       <a href="/shop.php?filter=sale" class="view-all">View all →</a>
     </div>
     <div class="product-grid">
-        <?php foreach ($saleProducts as $p): ?><?= render_product_card($p) ?><?php endforeach; ?>
+      <?php foreach ($saleProducts as $p): ?><?= render_product_card($p) ?><?php endforeach; ?>
     </div>
   </div>
 </section>
 <?php endif; ?>
 
-<section class="home-section alt" style="padding-top:36px;padding-bottom:48px">
+<section class="home-section alt">
   <div class="container">
     <div class="features-row">
-      <div class="feat-item">
-        <div class="feat-icon"><i class="fas fa-truck-fast"></i></div>
-        <div>
-          <h4>Nationwide Delivery</h4>
-          <p>2–5 day shipping across Bangladesh</p>
-        </div>
-      </div>
-      <div class="feat-item">
-        <div class="feat-icon"><i class="fas fa-lock"></i></div>
-        <div>
-          <h4>Secure Checkout</h4>
-          <p>COD, bKash, Nagad &amp; Card</p>
-        </div>
-      </div>
-      <div class="feat-item">
-        <div class="feat-icon"><i class="fas fa-rotate-left"></i></div>
-        <div>
-          <h4>Easy Exchange</h4>
-          <p>7-day hassle-free returns</p>
-        </div>
-      </div>
-      <div class="feat-item">
-        <div class="feat-icon"><i class="fas fa-certificate"></i></div>
-        <div>
-          <h4>Quality Assured</h4>
-          <p>Premium fabrics, checked before ship</p>
-        </div>
-      </div>
-      <div class="feat-item">
-        <div class="feat-icon"><i class="fas fa-tags"></i></div>
-        <div>
-          <h4>Member Offers</h4>
-          <p>Exclusive deals for registered buyers</p>
-        </div>
-      </div>
-      <div class="feat-item">
-        <div class="feat-icon"><i class="fas fa-headset"></i></div>
-        <div>
-          <h4>Dedicated Support</h4>
-          <p>Order help, sizing &amp; styling advice</p>
-        </div>
-      </div>
+      <div class="feat-item"><i class="fas fa-truck"></i><h4>Fast Delivery</h4><p>Delivery across Bangladesh</p></div>
+      <div class="feat-item"><i class="fas fa-shield-alt"></i><h4>Secure Payment</h4><p>COD, bKash, Nagad, Card</p></div>
+      <div class="feat-item"><i class="fas fa-undo"></i><h4>Easy Returns</h4><p>Simple exchange policy</p></div>
+      <div class="feat-item"><i class="fas fa-headset"></i><h4>Support</h4><p>Help with orders &amp; sizing</p></div>
     </div>
   </div>
 </section>
@@ -891,7 +562,6 @@ body { background: #fff !important; }
   </div>
 </section>
 <?php endif; ?>
-
 
 </div><!-- /.home-wrap -->
 

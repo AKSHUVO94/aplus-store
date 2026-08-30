@@ -222,18 +222,42 @@ class Cart
         return $t;
     }
 
-    public static function shipping()
+    /**
+     * Shipping by city: Dhaka = 70, outside Dhaka = 120.
+     * Free when subtotal >= free_shipping_min.
+     */
+    public static function shipping($city = null)
     {
         $sub = self::subtotal();
         $freeMin = (float) setting('free_shipping_min', 3000);
-        if ($sub >= $freeMin) {
-            return 0;
+        if ($freeMin > 0 && $sub >= $freeMin) {
+            return 0.0;
         }
-        return (float) setting('shipping_cost', 120);
+
+        $dhakaRate = (float) setting('shipping_cost_dhaka', 70);
+        $outsideRate = (float) setting('shipping_cost_outside', setting('shipping_cost', 120));
+
+        if ($city === null || $city === '') {
+            // Cart page (no city yet) — show outside rate as estimate
+            return $outsideRate;
+        }
+
+        return self::isDhakaCity($city) ? $dhakaRate : $outsideRate;
     }
 
-    public static function total()
+    public static function isDhakaCity($city)
     {
-        return self::subtotal() + self::shipping();
+        $c = strtolower(trim((string) $city));
+        if ($c === '') return false;
+        // Match Dhaka / ঢাকা and common variants
+        if (strpos($c, 'dhaka') !== false) return true;
+        if (function_exists('mb_stripos') && mb_stripos($city, 'ঢাকা') !== false) return true;
+        return false;
+    }
+
+    public static function total($city = null)
+    {
+        $disc = class_exists('Coupon') ? Coupon::discount() : 0;
+        return max(0, self::subtotal() + self::shipping($city) - $disc);
     }
 }

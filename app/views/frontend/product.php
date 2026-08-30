@@ -7,6 +7,31 @@ $pageTitle = $p['name'];
 $sizes = array_filter(array_map('trim', explode(',', $p['sizes'] ?: '')));
 $colors = array_filter(array_map('trim', explode(',', $p['colors'] ?: '')));
 $success = flash('success'); $error = flash('error');
+
+// Approved reviews for this product
+$productReviews = array();
+$avgRating = 0;
+$reviewCount = 0;
+$ratingBreakdown = array(5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0);
+try {
+    $productReviews = Database::fetchAll(
+        "SELECT * FROM product_reviews WHERE product_id=? AND status='approved' ORDER BY created_at DESC LIMIT 50",
+        array((int)$p['id'])
+    );
+    $reviewCount = count($productReviews);
+    if ($reviewCount > 0) {
+        $sum = 0;
+        foreach ($productReviews as $pr) {
+            $r = (int)$pr['rating'];
+            $sum += $r;
+            if (isset($ratingBreakdown[$r])) $ratingBreakdown[$r]++;
+        }
+        $avgRating = round($sum / $reviewCount, 1);
+    }
+} catch (Exception $e) {
+    $productReviews = array();
+}
+
 ob_start();
 ?>
 <section class="section">
@@ -156,6 +181,39 @@ ob_start();
       <a href="/category/<?= e($p['cat_slug']) ?>" class="text-muted" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.05em"><?= e($p['cat_name']) ?></a>
       <?php endif; ?>
       <h1><?= e($p['name']) ?></h1>
+
+      <!-- Star rating summary under title -->
+      <div class="pd-rating" style="display:flex;align-items:center;gap:8px;margin:8px 0 14px;flex-wrap:wrap">
+        <?php if ($reviewCount > 0): ?>
+          <div class="pd-stars" style="display:inline-flex;gap:2px" title="<?= e((string)$avgRating) ?> out of 5">
+            <?php
+              $full = (int)floor($avgRating);
+              $half = ($avgRating - $full) >= 0.5;
+              for ($s = 1; $s <= 5; $s++):
+                if ($s <= $full) {
+                    echo '<i class="fas fa-star" style="color:#f59e0b;font-size:.95rem"></i>';
+                } elseif ($s === $full + 1 && $half) {
+                    echo '<i class="fas fa-star-half-alt" style="color:#f59e0b;font-size:.95rem"></i>';
+                } else {
+                    echo '<i class="far fa-star" style="color:#d4d4d4;font-size:.95rem"></i>';
+                }
+              endfor;
+            ?>
+          </div>
+          <span style="font-weight:700;color:#f59e0b"><?= e((string)$avgRating) ?></span>
+          <a href="#product-reviews" style="color:var(--color-text-muted);font-size:.9rem;text-decoration:underline">
+            (<?= (int)$reviewCount ?> review<?= $reviewCount > 1 ? 's' : '' ?>)
+          </a>
+        <?php else: ?>
+          <div class="pd-stars" style="display:inline-flex;gap:2px">
+            <?php for ($s = 1; $s <= 5; $s++): ?>
+              <i class="far fa-star" style="color:#d4d4d4;font-size:.95rem"></i>
+            <?php endfor; ?>
+          </div>
+          <a href="#product-reviews" style="color:var(--color-text-muted);font-size:.9rem">No reviews yet — be the first</a>
+        <?php endif; ?>
+      </div>
+
       <?php $isOos = (int)$p['stock'] <= 0; ?>
       <?php if ($isOos): ?>
       <div class="alert alert-error" style="margin-bottom:16px"><strong>Out of Stock</strong> — This item is currently unavailable.</div>
@@ -203,64 +261,146 @@ ob_start();
             <button type="button" class="qty-plus">+</button>
           </div>
         </div>
-        <div style="display:flex;gap:12px;margin-top:28px;flex-wrap:wrap">
+        <div style="display:flex;gap:12px;margin-top:28px;flex-wrap:wrap;align-items:center">
           <button type="submit" class="btn btn-primary btn-lg" <?= $p['stock']<1?'disabled':'' ?>>
             <i class="fas fa-shopping-bag"></i> <?= $p['stock']<1?'Out of Stock':'Add to Cart' ?>
           </button>
           <a href="/shop" class="btn btn-outline btn-lg">Continue Shopping</a>
         </div>
       </form>
-      
+      <?php
+        $callPhone = setting('site_phone', '');
+        if ($callPhone):
+      ?>
+      <div class="pd-call-order" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--color-border)">
+        <a href="tel:<?= e(preg_replace('/[^0-9+]/', '', $callPhone)) ?>" style="display:inline-flex;align-items:center;gap:8px;color:var(--color-text);text-decoration:none;font-weight:600">
+          <i class="fas fa-phone" style="color:var(--color-primary)"></i>
+          Call For Order : <?= e($callPhone) ?>
+        </a>
+      </div>
+      <?php endif; ?>
     </div>
+
+    <!-- Right sidebar: Delivery / Payment / Return (reference e-commerce style) -->
+    <aside class="pd-sidebar">
+      <div class="pd-side-card">
+        <h3 class="pd-side-title">Delivery Options</h3>
+        <ul class="pd-side-list">
+          <li>
+            <i class="fas fa-map-marker-alt"></i>
+            <div>
+              <strong>Available Delivery Area:</strong>
+              <span><?= e(setting('site_address', 'All over Bangladesh')) ?></span>
+            </div>
+          </li>
+          <li>
+            <i class="fas fa-truck"></i>
+            <div>
+              <strong>Delivery Info</strong>
+              <span>Delivery Time: 1–5 working days</span>
+              <span>Inside Dhaka City: <?= money(70) ?></span>
+              <span>Outside Dhaka City: <?= money(120) ?></span>
+            </div>
+          </li>
+          <li>
+            <i class="fas fa-hand-holding-usd"></i>
+            <div>
+              <strong>Cash on Delivery Available</strong>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="pd-side-card">
+        <h3 class="pd-side-title">Return &amp; Warranty</h3>
+        <ul class="pd-side-list pd-side-plain">
+          <li>Cancellation, Return &amp; Refund</li>
+          <li>Change of mind is not applicable</li>
+          <li class="pd-side-muted"><i class="fas fa-ban"></i> Warranty Not Available</li>
+        </ul>
+      </div>
+
+      <div class="pd-side-card pd-side-seller">
+        <div class="pd-side-seller-label">Sold By</div>
+        <div class="pd-side-seller-name"><?= e(setting('site_name', 'AK')) ?></div>
+      </div>
+    </aside>
   </div>
 </div>
 </section>
 
-<?php
-  $productReviews = array();
-  $avgRating = 0;
-  try {
-      $productReviews = Database::fetchAll(
-          "SELECT * FROM product_reviews WHERE product_id=? AND status='approved' ORDER BY created_at DESC LIMIT 50",
-          array((int)$p['id'])
-      );
-      if ($productReviews) {
-          $sum = 0;
-          foreach ($productReviews as $pr) { $sum += (int)$pr['rating']; }
-          $avgRating = round($sum / count($productReviews), 1);
-      }
-  } catch (Exception $e) { $productReviews = array(); }
-?>
-<section class="section" style="padding-top:0">
+<section class="section" style="padding-top:0" id="product-reviews">
   <div class="container">
     <div class="reviews-block">
-      <div class="section-header">
+      <div class="section-header" style="margin-bottom:20px">
         <div>
           <p class="text-muted" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Reviews</p>
-          <h2>Customer Reviews <?php if ($avgRating > 0): ?><span style="font-size:1rem;font-weight:600;color:#f59e0b;margin-left:8px"><?= e((string)$avgRating) ?> ★</span> <span class="text-muted" style="font-size:.9rem;font-weight:400">(<?= count($productReviews) ?>)</span><?php endif; ?></h2>
+          <h2 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0">
+            Customer Reviews
+            <?php if ($reviewCount > 0): ?>
+              <span style="font-size:1.05rem;font-weight:700;color:#f59e0b">
+                <?php for ($s=1;$s<=5;$s++): ?>
+                  <i class="fas fa-star" style="color:<?= $s <= round($avgRating) ? '#f59e0b' : '#d4d4d4' ?>;font-size:.9rem"></i>
+                <?php endfor; ?>
+                <?= e((string)$avgRating) ?>
+              </span>
+              <span class="text-muted" style="font-size:.95rem;font-weight:500">(<?= (int)$reviewCount ?>)</span>
+            <?php endif; ?>
+          </h2>
         </div>
       </div>
 
-      <?php if (!empty($productReviews)): ?>
-      <div class="product-reviews-list" style="margin-bottom:28px">
-        <?php foreach ($productReviews as $rv): ?>
-        <div class="review-card" style="margin-bottom:12px">
-          <div class="review-stars">
+      <?php if ($reviewCount > 0): ?>
+      <!-- Rating summary + breakdown -->
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;margin-bottom:28px;padding:18px 20px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:14px;max-width:520px">
+        <div style="text-align:center">
+          <div style="font-size:2.4rem;font-weight:800;line-height:1;color:#f59e0b"><?= e((string)$avgRating) ?></div>
+          <div style="margin:6px 0">
             <?php for ($s=1;$s<=5;$s++): ?>
-              <i class="fas fa-star" style="color:<?= $s <= (int)$rv['rating'] ? '#f59e0b' : '#d4d4d4' ?>"></i>
+              <i class="fas fa-star" style="color:<?= $s <= round($avgRating) ? '#f59e0b' : '#d4d4d4' ?>"></i>
             <?php endfor; ?>
           </div>
-          <p class="review-text">"<?= e($rv['comment']) ?>"</p>
-          <div class="review-name">— <?= e($rv['customer_name']) ?> · <span class="text-muted"><?= e(date('d M Y', strtotime($rv['created_at']))) ?></span></div>
+          <div class="text-muted" style="font-size:.85rem"><?= (int)$reviewCount ?> review<?= $reviewCount > 1 ? 's' : '' ?></div>
+        </div>
+        <div>
+          <?php for ($star = 5; $star >= 1; $star--):
+            $cnt = $ratingBreakdown[$star];
+            $pct = $reviewCount > 0 ? round(($cnt / $reviewCount) * 100) : 0;
+          ?>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.8rem">
+            <span style="width:28px;text-align:right"><?= $star ?>★</span>
+            <div style="flex:1;height:8px;background:var(--color-border);border-radius:99px;overflow:hidden">
+              <div style="height:100%;width:<?= $pct ?>%;background:#f59e0b;border-radius:99px"></div>
+            </div>
+            <span class="text-muted" style="width:28px"><?= $cnt ?></span>
+          </div>
+          <?php endfor; ?>
+        </div>
+      </div>
+
+      <!-- Reviews side by side (grid) -->
+      <div class="product-reviews-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:32px">
+        <?php foreach ($productReviews as $rv): ?>
+        <div class="review-card" style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:14px;padding:18px 18px 14px;box-shadow:0 2px 10px rgba(0,0,0,.04)">
+          <div class="review-stars" style="margin-bottom:8px">
+            <?php for ($s=1;$s<=5;$s++): ?>
+              <i class="fas fa-star" style="color:<?= $s <= (int)$rv['rating'] ? '#f59e0b' : '#d4d4d4' ?>;font-size:.85rem"></i>
+            <?php endfor; ?>
+          </div>
+          <p class="review-text" style="margin:0 0 12px;line-height:1.5;font-size:.95rem">"<?= e($rv['comment']) ?>"</p>
+          <div class="review-name" style="font-size:.85rem;color:var(--color-text-muted)">
+            <strong style="color:var(--color-text)"><?= e($rv['customer_name']) ?></strong>
+            · <?= e(date('d M Y', strtotime($rv['created_at']))) ?>
+          </div>
         </div>
         <?php endforeach; ?>
       </div>
       <?php else: ?>
-      <p class="text-muted" style="margin-bottom:20px">No reviews yet. Be the first to review this product.</p>
+      <p class="text-muted" style="margin-bottom:24px">No reviews yet. Be the first to review this product.</p>
       <?php endif; ?>
 
-      <div class="review-form-card">
-        <h3 style="margin:0 0 12px;font-size:1.1rem">Write a review</h3>
+      <div class="review-form-card" style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:14px;padding:22px;max-width:560px">
+        <h3 style="margin:0 0 14px;font-size:1.1rem">Write a review</h3>
         <?php if (Auth::checkCustomer()): ?>
         <form method="POST" action="/review-submit.php">
           <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
@@ -268,7 +408,7 @@ ob_start();
           <input type="hidden" name="product_slug" value="<?= e($p['slug']) ?>">
           <div class="form-group">
             <label>Your rating</label>
-            <select name="rating" class="form-control" style="max-width:160px">
+            <select name="rating" class="form-control" style="max-width:180px">
               <option value="5">5 ★ Excellent</option>
               <option value="4">4 ★ Good</option>
               <option value="3">3 ★ Average</option>
@@ -281,7 +421,7 @@ ob_start();
             <textarea name="comment" class="form-control" rows="3" required minlength="5" placeholder="Share your experience with this product…"></textarea>
           </div>
           <button type="submit" class="btn btn-primary">Submit review</button>
-          <p class="text-muted" style="font-size:.8rem;margin-top:8px">Reviews are checked by admin before they appear.</p>
+          <p class="text-muted" style="font-size:.8rem;margin-top:8px">Reviews are checked by admin before they appear on the product.</p>
         </form>
         <?php else: ?>
         <p class="text-muted">Please <a href="/login.php">login</a> as a registered customer to leave a star rating and comment.</p>
@@ -376,4 +516,4 @@ ob_start();
 })();
 </script>
 
-<?php $content = ob_get_clean(); require dirname(__DIR__).'/layouts/frontend.php'; ?>
+<?php $content = ob_get_clean(); require dirname(__DIR__).'/layouts/frontend.php';

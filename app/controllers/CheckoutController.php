@@ -114,8 +114,11 @@ if (in_array($payment, $onlinePay, true)) {
 
 $orderNumber = 'AK-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -5));
 $subtotal = Cart::subtotal();
-$shipping = Cart::shipping();
-$total = $subtotal + $shipping;
+$shipping = Cart::shipping($city);
+$discount = class_exists('Coupon') ? Coupon::discount() : 0;
+$couponCur = class_exists('Coupon') ? Coupon::current() : null;
+$couponCode = $couponCur ? $couponCur['code'] : null;
+$total = max(0, $subtotal + $shipping - $discount);
 
 // Customer profile
 $customerId = null;
@@ -143,7 +146,7 @@ $orderData = array(
     'shipping_country' => 'Bangladesh',
     'subtotal'         => $subtotal,
     'shipping_cost'    => $shipping,
-    'discount'         => 0,
+    'discount'         => $discount,
     'total'            => $total,
     'payment_method'   => $payment,
     'payment_status'   => 'pending',
@@ -293,6 +296,16 @@ foreach (Cart::items() as $item) {
     }
 }
 
+if ($couponCode) {
+    try {
+        Coupon::markUsed($couponCode);
+        // store code on order if column exists
+        try {
+            Database::update('orders', array('coupon_code' => $couponCode), 'id=?', array($orderId));
+        } catch (Exception $e) {}
+    } catch (Exception $e) {}
+    Coupon::remove();
+}
 Cart::clear();
 
 if ($customerId) {

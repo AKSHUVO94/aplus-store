@@ -5,11 +5,13 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Dashboard';
 
 $pendingOrders = 0;
 $newMessages = 0;
+$newChats = 0;
 try {
     $pendingOrders = (int) Database::fetch("SELECT COUNT(*) c FROM orders WHERE status='pending'")['c'];
     $newMessages = (int) Database::fetch("SELECT COUNT(*) c FROM contact_messages WHERE status='new'")['c'];
+    $newChats = (int) Database::fetch("SELECT COUNT(*) c FROM chat_messages WHERE sender='visitor' AND is_read=0")['c'];
 } catch (Exception $e) {}
-$notifCount = $pendingOrders + $newMessages;
+$notifCount = $pendingOrders + $newMessages + $newChats;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -56,6 +58,7 @@ $notifCount = $pendingOrders + $newMessages;
     <a href="/admin/categories.php" class="nav-link <?= activeClass('/admin/categories') ?>"><i class="fas fa-tags"></i> Categories</a>
     <div class="nav-section-title">Sales</div>
     <a href="/admin/reports.php" class="nav-link <?= activeClass('/admin/reports') ?>"><i class="fas fa-chart-bar"></i> Reports</a>
+    <a href="/admin/coupons.php" class="nav-link <?= activeClass('/admin/coupons') ?>"><i class="fas fa-ticket-alt"></i> Coupons</a>
     <a href="/admin/orders.php" class="nav-link <?= activeClass('/admin/orders') ?>">
       <i class="fas fa-box"></i> Orders
       <?php if ($pendingOrders > 0): ?><span class="sidebar-badge" id="sidebar-order-badge"><?= $pendingOrders ?></span><?php endif; ?>
@@ -66,6 +69,10 @@ $notifCount = $pendingOrders + $newMessages;
     <a href="/admin/banners.php" class="nav-link <?= activeClass('/admin/banners') ?>"><i class="fas fa-images"></i> Banners</a>
     <a href="/admin/themes.php" class="nav-link <?= activeClass('/admin/themes') ?>"><i class="fas fa-palette"></i> Themes</a>
     <a href="/admin/settings.php" class="nav-link <?= activeClass('/admin/settings') ?>"><i class="fas fa-cog"></i> Settings</a>
+    <a href="/admin/live-chat.php" class="nav-link <?= activeClass('/admin/live-chat') ?>">
+      <i class="fas fa-comments"></i> Live Chat
+      <?php if ($newChats > 0): ?><span class="sidebar-badge" id="sidebar-chat-badge"><?= (int)$newChats ?></span><?php endif; ?>
+    </a>
     <a href="/admin/messages.php" class="nav-link <?= activeClass('/admin/messages') ?>">
       <i class="fas fa-envelope"></i> Messages
       <?php if ($newMessages > 0): ?><span class="sidebar-badge"><?= $newMessages ?></span><?php endif; ?>
@@ -124,17 +131,28 @@ $notifCount = $pendingOrders + $newMessages;
       if (data.pending_orders > 0) { side.textContent = data.pending_orders; side.style.display = ''; }
       else { side.style.display = 'none'; }
     }
-    if (!data.orders || !data.orders.length) {
-      list.innerHTML = '<div class="notif-empty">No recent orders</div>';
-      return;
+    var chatSide = document.getElementById('sidebar-chat-badge');
+    if (chatSide) {
+      if (data.new_chats > 0) { chatSide.textContent = data.new_chats; chatSide.style.display = ''; }
+      else { chatSide.style.display = 'none'; }
     }
     var html = '';
-    data.orders.forEach(function(o){
+    (data.chats || []).forEach(function(c){
+      html += '<a class="notif-item is-new" href="' + c.url + '">' +
+        '<div class="n-title">💬 ' + c.title + (c.unread ? ' (' + c.unread + ')' : '') + '</div>' +
+        '<div class="n-meta">' + (c.preview || '') + (c.time ? ' · ' + c.time : '') + '</div>' +
+      '</a>';
+    });
+    (data.orders || []).forEach(function(o){
       html += '<a class="notif-item' + (o.is_new ? ' is-new' : '') + '" href="' + o.url + '">' +
         '<div class="n-title">' + (o.is_new ? '🛒 New order ' : 'Order ') + o.order_number + '</div>' +
         '<div class="n-meta">' + o.customer_name + ' · ' + o.total + ' · ' + o.status + ' · ' + o.time + '</div>' +
       '</a>';
     });
+    if (!html) {
+      list.innerHTML = '<div class="notif-empty">No notifications</div>';
+      return;
+    }
     list.innerHTML = html;
   }
 

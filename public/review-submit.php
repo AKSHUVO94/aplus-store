@@ -71,40 +71,21 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 } catch (Exception $e) {}
 
-// One review per customer per product (update if exists pending)
-$existing = null;
+// Always insert a new review (do not replace previous reviews)
 try {
-    $existing = Database::fetch(
-        "SELECT id FROM product_reviews WHERE product_id=? AND customer_id=? LIMIT 1",
-        array($productId, $customerId)
-    );
-} catch (Exception $e) {}
-
-try {
-    if ($existing) {
-        Database::update('product_reviews', array(
-            'rating' => $rating,
-            'comment' => $comment,
-            'customer_name' => $name,
-            'customer_email' => $email,
-            'status' => 'pending',
-            'show_on_home' => 0,
-        ), 'id=?', array((int)$existing['id']));
-    } else {
-        Database::insert('product_reviews', array(
-            'product_id' => $productId,
-            'customer_id' => $customerId,
-            'customer_name' => $name,
-            'customer_email' => $email,
-            'rating' => $rating,
-            'comment' => $comment,
-            'status' => 'pending',
-            'show_on_home' => 0,
-        ));
-    }
+    Database::insert('product_reviews', array(
+        'product_id' => $productId,
+        'customer_id' => $customerId,
+        'customer_name' => $name,
+        'customer_email' => $email,
+        'rating' => $rating,
+        'comment' => $comment,
+        'status' => 'pending',
+        'show_on_home' => 0,
+    ));
     flash('success', 'Thank you! Your review was submitted and is waiting for admin approval.');
 } catch (Exception $e) {
-    flash('error', 'Could not save review. Please run database/upgrade_reviews.sql');
+    flash('error', 'Could not save review. Please try again.');
 }
 
 redirect('/index.php?route=product&slug=' . urlencode($product['slug']));

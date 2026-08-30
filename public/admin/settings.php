@@ -5,6 +5,7 @@ $pageTitle = 'Settings';
 
 $keys = [
     'site_name','site_tagline','site_email','site_phone','site_address',
+    'news_ticker_enabled','news_ticker_label','news_ticker_text','news_ticker_speed',
     'brand_watermark_enabled','brand_watermark_text','brand_watermark_opacity','brand_watermark_position','brand_watermark_size',
     'mail_order_confirmation','smtp_enabled','smtp_host','smtp_port','smtp_user','smtp_pass','smtp_secure',
     'shipping_cost','free_shipping_min',
@@ -16,6 +17,10 @@ $keys = [
     'social_facebook_enabled','social_facebook_url',
     'social_instagram_enabled','social_instagram_url',
     'social_whatsapp_enabled','social_whatsapp_url',
+    'chat_enabled','chat_title','chat_greeting',
+    'chat_livechat_enabled','chat_messenger_enabled','chat_whatsapp_enabled',
+    'chat_messenger_url','chat_whatsapp_url',
+    'chat_auto_reply_enabled','chat_auto_reply_text','chat_require_approve',
     'footer_pay_cod','footer_pay_bkash','footer_pay_nagad','footer_pay_rocket','footer_pay_visa','footer_pay_mc',
     'promo_enabled','promo_title','promo_text','promo_btn_text','promo_btn_link','promo_image',
     'review_1_enabled','review_1_name','review_1_text','review_1_stars',
@@ -60,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_mail'])) {
     }
 
     foreach ($keys as $k) {
-        if (strpos($k, '_enabled') !== false || $k === 'mail_order_confirmation' || $k === 'smtp_enabled') {
+        if (strpos($k, '_enabled') !== false || $k === 'mail_order_confirmation' || $k === 'smtp_enabled' || $k === 'chat_require_approve') {
             $val = isset($_POST[$k]) ? '1' : '0';
         } else {
             if (!isset($_POST[$k])) continue;
@@ -190,6 +195,25 @@ ob_start();
 </div>
 
 <div class="panel">
+  <div class="panel-header"><h3><i class="fas fa-newspaper"></i> Home News Ticker</h3></div>
+  <div class="panel-body">
+    <p class="text-muted" style="margin-bottom:14px;font-size:.9rem">Scrolling news bar under the header on the home page. Separate multiple items with <strong>|</strong></p>
+    <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:14px">
+      <input type="checkbox" name="news_ticker_enabled" value="1" <?= $g('news_ticker_enabled','1')==='1'?'checked':'' ?>>
+      Show news ticker on home page
+    </label>
+    <div class="form-row">
+      <div class="form-group"><label>Label (left side)</label><input type="text" name="news_ticker_label" class="form-control" value="<?= e($g('news_ticker_label','All NEWS:')) ?>" placeholder="All NEWS:"></div>
+      <div class="form-group"><label>Speed (seconds for one loop)</label><input type="number" name="news_ticker_speed" class="form-control" min="8" max="120" value="<?= e($g('news_ticker_speed','28')) ?>" placeholder="28"></div>
+    </div>
+    <div class="form-group">
+      <label>News text</label>
+      <textarea name="news_ticker_text" class="form-control" rows="3" placeholder="Free shipping over ৳3000 | New summer collection live | 7-day easy exchange"><?= e($g('news_ticker_text','Free shipping over ৳3000 | New arrivals every week | Easy 7-day exchange')) ?></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
   <div class="panel-header"><h3><i class="fas fa-share-alt"></i> Social Links (Footer)</h3></div>
   <div class="panel-body">
     <p class="text-muted" style="margin-bottom:16px;font-size:.9rem">Enable icons and set full profile URLs. Disabled icons will not show in footer.</p>
@@ -213,6 +237,63 @@ ob_start();
         WhatsApp
       </label>
       <input type="url" name="social_whatsapp_url" class="form-control" value="<?= e($g('social_whatsapp_url')) ?>" placeholder="https://wa.me/8801XXXXXXXXX">
+    </div>
+  </div>
+</div>
+
+
+<div class="panel">
+  <div class="panel-header"><h3><i class="fas fa-comments"></i> Live Chat Widget</h3></div>
+  <div class="panel-body">
+    <p class="text-muted" style="margin-bottom:16px;font-size:.9rem">Floating chat on the storefront. Reply to LiveChat from <strong>Admin → Live Chat</strong>.</p>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600">
+        <input type="checkbox" name="chat_enabled" value="1" <?= $g('chat_enabled','1')==='1'?'checked':'' ?>>
+        Enable chat widget
+      </label>
+    </div>
+    <div class="form-group"><label>Chat Title</label>
+      <input type="text" name="chat_title" class="form-control" value="<?= e($g('chat_title','Hi there!')) ?>">
+    </div>
+    <div class="form-group"><label>Greeting Text</label>
+      <textarea name="chat_greeting" class="form-control" rows="2"><?= e($g('chat_greeting','Hi there! Let us know if we can help you with anything at all.')) ?></textarea>
+    </div>
+    <div style="border:1px solid var(--color-border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:8px">
+        <input type="checkbox" name="chat_livechat_enabled" value="1" <?= $g('chat_livechat_enabled','1')==='1'?'checked':'' ?>>
+        LiveChat (in-site — reply from admin)
+      </label>
+    </div>
+    <div style="border:1px solid var(--color-border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:10px">
+        <input type="checkbox" name="chat_messenger_enabled" value="1" <?= $g('chat_messenger_enabled','1')==='1'?'checked':'' ?>>
+        Messenger
+      </label>
+      <input type="url" name="chat_messenger_url" class="form-control" value="<?= e($g('chat_messenger_url')) ?>" placeholder="https://m.me/yourpage">
+    </div>
+
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600">
+        <input type="checkbox" name="chat_auto_reply_enabled" value="1" <?= $g('chat_auto_reply_enabled','1')==='1'?'checked':'' ?>>
+        Auto-reply on first customer message
+      </label>
+    </div>
+    <div class="form-group"><label>Auto-reply text</label>
+      <textarea name="chat_auto_reply_text" class="form-control" rows="3"><?= e($g('chat_auto_reply_text','Thank you for contacting us. Our customer care team is a bit busy right now — please be patient. We will reply soon.')) ?></textarea>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600">
+        <input type="checkbox" name="chat_require_approve" value="1" <?= $g('chat_require_approve','1')==='1'?'checked':'' ?>>
+        Require admin approval before free chat (after auto-reply)
+      </label>
+      <small class="text-muted">Until approved, only auto-reply is sent. You can Block any chat anytime from Live Chat.</small>
+    </div>
+    <div style="border:1px solid var(--color-border);border-radius:12px;padding:14px;margin-bottom:4px">
+      <label style="display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:10px">
+        <input type="checkbox" name="chat_whatsapp_enabled" value="1" <?= $g('chat_whatsapp_enabled','1')==='1'?'checked':'' ?>>
+        WhatsApp
+      </label>
+      <input type="url" name="chat_whatsapp_url" class="form-control" value="<?= e($g('chat_whatsapp_url')) ?>" placeholder="https://wa.me/8801XXXXXXXXX">
     </div>
   </div>
 </div>
